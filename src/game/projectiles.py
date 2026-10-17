@@ -96,12 +96,16 @@ class Projectile:
         world_bounds: pygame.Rect,
         players: list[Player],
         effects: EffectManager,
+        boss: any = None,
     ) -> None:
         """Update projectile physics, trails, and collision detection."""
         if self._expired:
             return
 
         self.time_alive += dt
+        if self.kind == "melee" and self.time_alive > 0.08:
+            self._expired = True
+            return
 
         # Apply aerodynamics / gravity
         if self.kind == "bomb":
@@ -140,6 +144,18 @@ class Projectile:
                 self.detonate((self.position.x, self.position.y), effects, players)
             else:
                 effects.burst((self.position.x, self.position.y), count=8, palette=[(200, 200, 200), (255, 220, 100)])
+                self._expired = True
+            return
+
+        # Check boss collision
+        if boss and getattr(boss, "alive", lambda: False)() and box.colliderect(boss.bounds()):
+            if self.kind == "bomb":
+                self.detonate((self.position.x, self.position.y), effects, players)
+                boss.take_damage(self.damage * 1.5, effects)
+            else:
+                boss.take_damage(self.damage, effects)
+                effects.burst((self.position.x, self.position.y), count=12, palette=[(255, 60, 60), (255, 220, 80)])
+                effects.request_shake(intensity=4.0, duration=0.12)
                 self._expired = True
             return
 
@@ -230,10 +246,11 @@ class ProjectileManager:
         world_bounds: pygame.Rect,
         players: list[Player],
         effects: EffectManager,
+        boss: any = None,
     ) -> None:
         """Update all active projectiles."""
         for proj in self.projectiles:
-            proj.update(dt, platforms, world_bounds, players, effects)
+            proj.update(dt, platforms, world_bounds, players, effects, boss=boss)
         self.remove_expired()
 
     def draw(self, surface: pygame.Surface, camera: Camera) -> None:

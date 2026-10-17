@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pygame
 
 if TYPE_CHECKING:
+    from src.game.boss import FinalBoss
     from src.game.player import Player
     from src.game.settings import GameConfig
 
@@ -36,6 +37,8 @@ class UI:
 
         # Menu procedural starfield / floating dust
         self._menu_time: float = 0.0
+        self.boss_lag_health: float = 600.0
+        self.boss_pulse_time: float = 0.0
         self._stars: list[dict[str, float]] = [
             {
                 "x": random.uniform(0, self.sw),
@@ -301,3 +304,75 @@ class UI:
 
         self.draw_button(surface, self.restart_btn, "RESTART (R)", hovered=r_hover)
         self.draw_button(surface, self.menu_btn, "MAIN MENU (Esc)", hovered=m_hover)
+
+    def draw_boss_health_bar(self, surface: pygame.Surface, boss: FinalBoss, dt: float = 0.016) -> None:
+        """Render the epic screen-top Boss health bar with damage lag, phase glow, and gothic borders."""
+        if not boss or not boss.alive():
+            return
+
+        self.boss_pulse_time += dt
+
+        # Smooth damage lag catching up to actual health
+        if self.boss_lag_health > boss.health:
+            self.boss_lag_health = max(boss.health, self.boss_lag_health - (boss.max_health * 0.45) * dt)
+        elif self.boss_lag_health < boss.health:
+            self.boss_lag_health = boss.health
+
+        bar_w = 680
+        bar_h = 24
+        x = (self.sw - bar_w) // 2
+        y = 36
+
+        # --- BOSS TITLE & PHASE TAG ---
+        name_str = "💀 THE ZOMBIE TITAN: PATIENT ZERO 💀"
+        name_col = (255, 60, 70) if boss.is_enraged else (255, 215, 90)
+        name_surf = self.hud_font.render(name_str, True, name_col)
+        surface.blit(name_surf, name_surf.get_rect(center=(self.sw // 2, y - 16)))
+
+        if boss.is_enraged:
+            enrage_txt = self.small_font.render("⚡ PHASE 2: ENRAGED MUTATION ⚡", True, (255, 50, 60))
+            surface.blit(enrage_txt, enrage_txt.get_rect(center=(self.sw // 2, y + bar_h + 16)))
+
+        # Background bar
+        bg_rect = pygame.Rect(x, y, bar_w, bar_h)
+        pygame.draw.rect(surface, (18, 12, 16), bg_rect, border_radius=6)
+
+        # Lagging damage bar (Dark Souls / Elden Ring style orange/red trailing bar)
+        lag_ratio = max(0.0, min(1.0, self.boss_lag_health / boss.max_health))
+        if lag_ratio > 0:
+            lag_rect = pygame.Rect(x, y, int(bar_w * lag_ratio), bar_h)
+            pygame.draw.rect(surface, (180, 50, 40), lag_rect, border_radius=6)
+
+        # Active current health fill
+        hp_ratio = max(0.0, min(1.0, boss.health / boss.max_health))
+        if hp_ratio > 0:
+            hp_rect = pygame.Rect(x, y, int(bar_w * hp_ratio), bar_h)
+            if boss.is_enraged:
+                pulse = (math.sin(self.boss_pulse_time * 8.0) + 1.0) * 0.5
+                r = int(220 + pulse * 35)
+                g = int(30 + pulse * 20)
+                b = int(40)
+                fill_color = (r, g, b)
+            else:
+                fill_color = (40, 180, 70) if hp_ratio > 0.3 else (210, 140, 30)
+            pygame.draw.rect(surface, fill_color, hp_rect, border_radius=6)
+
+            # Highlighting top gloss sheen
+            gloss_rect = pygame.Rect(x, y, int(bar_w * hp_ratio), bar_h // 2)
+            gloss_surf = pygame.Surface((gloss_rect.width, gloss_rect.height), pygame.SRCALPHA)
+            gloss_surf.fill((255, 255, 255, 45))
+            surface.blit(gloss_surf, (x, y))
+
+        # Heavy Gothic Metallic / Gold border
+        border_col = (255, 60, 70) if boss.is_enraged else (220, 185, 70)
+        pygame.draw.rect(surface, border_col, bg_rect, width=2, border_radius=6)
+
+        # 4 Corner Diamond Accents
+        sq = 5
+        pygame.draw.rect(surface, border_col, (x - sq // 2, y + bar_h // 2 - sq // 2, sq, sq))
+        pygame.draw.rect(surface, border_col, (x + bar_w - sq // 2, y + bar_h // 2 - sq // 2, sq, sq))
+
+        # Health Numbers
+        hp_str = f"{int(boss.health)} / {int(boss.max_health)}"
+        hp_num_surf = self.small_font.render(hp_str, True, (255, 255, 255))
+        surface.blit(hp_num_surf, hp_num_surf.get_rect(center=(self.sw // 2, y + bar_h // 2)))

@@ -5,6 +5,7 @@ import math
 from typing import TYPE_CHECKING
 import pygame
 
+from src.game.boss import FinalBoss
 from src.game.camera import Camera
 from src.game.effects import EffectManager
 from src.game.items import Item, ItemSpawner
@@ -33,6 +34,7 @@ class World:
         self.platforms: list[Platform] = create_arena(self.world_bounds)
         self.spawner: ItemSpawner = ItemSpawner(config)
         self.items: list[Item] = []
+        self.boss: FinalBoss | None = None
 
         self.players: list[Player] = []
         self.left_player: Player
@@ -40,11 +42,24 @@ class World:
 
         self.reset()
 
+    def spawn_boss(self, spawn_pos: tuple[float, float] | None = None) -> FinalBoss:
+        """Spawn the 3x mutated Final Boss Titan."""
+        if spawn_pos is None:
+            floor_y = float(self.world_bounds.bottom - 90)
+            spawn_pos = (float(self.world_bounds.centerx), floor_y)
+        boss = FinalBoss(spawn=spawn_pos)
+        self.boss = boss
+        # Dramatic entrance screen shake & ground explosion
+        self.effects.request_shake(intensity=14.0, duration=0.6)
+        self.effects.explosion((spawn_pos[0], spawn_pos[1] - 80), radius=100.0, palette=[(255, 50, 60), (255, 200, 60), (40, 20, 20)])
+        return boss
+
     def reset(self) -> None:
         """Reset match state, spawn fresh players, and initiate cinematic intro camera."""
         self.effects.clear()
         self.projectile_manager = ProjectileManager()
         self.items.clear()
+        self.boss = None
         self.platforms = create_arena(self.world_bounds)
         self.spawner = ItemSpawner(self.config)
 
@@ -123,8 +138,18 @@ class World:
 
         self.items = [it for it in self.items if it.active]
 
-        # 3. Update projectiles and apply damage
-        self.projectile_manager.update(dt, plat_boxes, self.world_bounds, self.players, self.effects)
+        # Update Boss if active
+        if self.boss:
+            if self.boss.alive():
+                self.boss.update(dt, plat_boxes, self.world_bounds, self.players, self.effects)
+            else:
+                if not getattr(self, "_boss_victory_triggered", False):
+                    self._boss_victory_triggered = True
+                    self.effects.explosion(self.boss.center(), radius=140.0, palette=[(255, 240, 100), (255, 120, 30), (255, 50, 50)])
+                    self.effects.request_shake(intensity=18.0, duration=0.8)
+
+        # 3. Update projectiles and apply damage (including boss hits)
+        self.projectile_manager.update(dt, plat_boxes, self.world_bounds, self.players, self.effects, boss=self.boss)
 
         # 4. Update effects and camera
         self.effects.update(dt)
@@ -146,6 +171,10 @@ class World:
 
         # 4. Projectiles
         self.projectile_manager.draw(surface, self.camera)
+
+        # 4.5. Final Boss Titan
+        if self.boss and self.boss.alive():
+            self.boss.draw(surface, self.camera)
 
         # 5. Players
         for p in self.players:

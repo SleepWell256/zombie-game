@@ -191,7 +191,7 @@ class Player:
 
     def attack(self, projectiles: list[Projectile], effects: EffectManager) -> None:
         """Fire or use the currently held item with visual casting recoil."""
-        if not self.alive():
+        if not self.alive() or self.attack_recoil > 0:
             return
 
         if self.held_item:
@@ -202,7 +202,18 @@ class Player:
         else:
             cx, cy = self.center()
             effects.burst((cx + self.facing * 20, cy), count=3, palette=[(255, 255, 200)])
-            self.attack_recoil = 0.12
+            self.attack_recoil = 0.22
+            # Melee punch projectile
+            from src.game.projectiles import Projectile
+            melee = Projectile(
+                owner_id=self.player_id,
+                position=(cx + self.facing * 24, cy),
+                velocity=(self.facing * 300.0, 0.0),
+                damage=20.0,
+                kind="melee",
+                radius=16,
+            )
+            projectiles.append(melee)
 
     def update(
         self,

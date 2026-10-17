@@ -117,10 +117,14 @@ class Game:
         elif self.state in ("intro", "playing"):
             self.world.draw(self.screen)
             self.ui.draw_hud(self.screen, self.world.left_player, self.world.right_player)
+            if self.world.boss and self.world.boss.alive():
+                self.ui.draw_boss_health_bar(self.screen, self.world.boss, self._last_dt)
 
         elif self.state == "game_over":
             self.world.draw(self.screen)
             self.ui.draw_hud(self.screen, self.world.left_player, self.world.right_player)
+            if self.world.boss:
+                self.ui.draw_boss_health_bar(self.screen, self.world.boss, self._last_dt)
             winner = self.world.winner()
             if winner:
                 self.ui.draw_result(self.screen, winner)
