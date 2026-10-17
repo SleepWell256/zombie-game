@@ -75,23 +75,22 @@ class World:
         )
         p1.on_ground = True
 
-        # Spawn Right player (Player 2) on arena ground
-        spawn_right = (float(self.world_bounds.right - 240), floor_y)
-        p2 = Player(
-            player_id=2,
-            spawn=spawn_right,
-            controls=self.config.controls.right,
-            assets=self.assets,
-            config=self.config,
-        )
-        p2.on_ground = True
+        # Equip test weapon with generous ammo for testing
+        from src.game.items import ItemType
+        test_weapon = Item(ItemType.MACHINE_GUN, (spawn_left[0], spawn_left[1]))
+        test_weapon.ammo = 999
+        p1.equip(test_weapon)
 
-        self.players = [p1, p2]
+        self.players = [p1]
         self.left_player = p1
-        self.right_player = p2
+        self.right_player = None
 
-        # Start non-blocking intro pan sequence
-        self.camera.start_intro(p1.center(), p2.center())
+        # Spawn Final Boss in arena
+        boss_spawn_x = float(self.world_bounds.centerx + 180)
+        self.spawn_boss((boss_spawn_x, floor_y))
+
+        # Start camera focus
+        self.camera.start_intro(p1.center(), (boss_spawn_x, floor_y - 80))
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Route input events to players."""
@@ -214,15 +213,17 @@ class World:
                     pygame.draw.rect(surface, (14, 18, 28), (bx, s_rect.top - emb_h, emb_w, emb_h))
 
     def finished(self) -> bool:
-        """Check if round has concluded due to a player's health reaching zero."""
-        return not (self.left_player.alive() and self.right_player.alive())
+        """Check if round has concluded."""
+        if self.boss:
+            return not self.left_player.alive() or not self.boss.alive()
+        return not (self.left_player.alive() and (self.right_player is None or self.right_player.alive()))
 
     def winner(self) -> Player | None:
         """Retrieve the winning player entity or None if ongoing."""
         if not self.finished():
             return None
-        if self.left_player.alive() and not self.right_player.alive():
+        if self.boss and not self.boss.alive() and self.left_player.alive():
             return self.left_player
-        if self.right_player.alive() and not self.left_player.alive():
-            return self.right_player
-        return self.left_player  # tie fallback
+        if self.left_player.alive():
+            return self.left_player
+        return None

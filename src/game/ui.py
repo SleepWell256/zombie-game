@@ -187,7 +187,7 @@ class UI:
         hovered = self.start_btn.collidepoint(mx, my)
         self.draw_button(surface, self.start_btn, "START DUEL (Enter)", hovered=hovered)
 
-    def draw_hud(self, surface: pygame.Surface, left: Player, right: Player) -> None:
+    def draw_hud(self, surface: pygame.Surface, left: Player, right: Player | None = None) -> None:
         """Render screen-space HUD bars and held weapon indicators."""
         bar_w = 340
         bar_h = 24
@@ -231,47 +231,48 @@ class UI:
         surface.blit(it_surf, (box_rect.x + 8, box_rect.y + 8))
 
         # ================= RIGHT PLAYER (P2) =================
-        p2_bg_rect = pygame.Rect(self.sw - margin - bar_w, margin, bar_w, bar_h)
+        if right is not None:
+            p2_bg_rect = pygame.Rect(self.sw - margin - bar_w, margin, bar_w, bar_h)
 
-        # Name
-        p2_name = self.hud_font.render("PLAYER 2", True, (160, 240, 200))
-        surface.blit(p2_name, (self.sw - margin - bar_w, margin - 22))
+            # Name
+            p2_name = self.hud_font.render("PLAYER 2", True, (160, 240, 200))
+            surface.blit(p2_name, (self.sw - margin - bar_w, margin - 22))
 
-        # Health Bar Background
-        pygame.draw.rect(surface, (20, 25, 22), p2_bg_rect, border_radius=4)
+            # Health Bar Background
+            pygame.draw.rect(surface, (20, 25, 22), p2_bg_rect, border_radius=4)
 
-        # Health Bar Fill (anchored to right)
-        p2_ratio = max(0.0, min(1.0, right.health / float(self.config.player_health)))
-        if p2_ratio > 0:
-            fill_w = int(bar_w * p2_ratio)
-            p2_fill_rect = pygame.Rect(self.sw - margin - fill_w, margin, fill_w, bar_h)
-            fill_color = (27, 120, 80) if p2_ratio > 0.25 else (220, 40, 20)
-            pygame.draw.rect(surface, fill_color, p2_fill_rect, border_radius=4)
+            # Health Bar Fill (anchored to right)
+            p2_ratio = max(0.0, min(1.0, right.health / float(self.config.player_health)))
+            if p2_ratio > 0:
+                fill_w = int(bar_w * p2_ratio)
+                p2_fill_rect = pygame.Rect(self.sw - margin - fill_w, margin, fill_w, bar_h)
+                fill_color = (27, 120, 80) if p2_ratio > 0.25 else (220, 40, 20)
+                pygame.draw.rect(surface, fill_color, p2_fill_rect, border_radius=4)
 
-        # Health Bar Border
-        pygame.draw.rect(surface, (180, 210, 200), p2_bg_rect, width=2, border_radius=4)
+            # Health Bar Border
+            pygame.draw.rect(surface, (180, 210, 200), p2_bg_rect, width=2, border_radius=4)
 
-        # Health Numbers
-        hp2_str = f"{int(right.health)} / {self.config.player_health}"
-        hp2_surf = self.small_font.render(hp2_str, True, (255, 255, 255))
-        surface.blit(hp2_surf, (self.sw - margin - bar_w + 8, margin + 4))
+            # Health Numbers
+            hp2_str = f"{int(right.health)} / {self.config.player_health}"
+            hp2_surf = self.small_font.render(hp2_str, True, (255, 255, 255))
+            surface.blit(hp2_surf, (self.sw - margin - bar_w + 8, margin + 4))
 
-        # Held Item Indicator Box (Right)
-        box2_rect = pygame.Rect(self.sw - margin - 140, margin + bar_h + 8, 140, 32)
-        pygame.draw.rect(surface, (20, 24, 34), box2_rect, border_radius=4)
-        pygame.draw.rect(surface, (100, 110, 130), box2_rect, width=1, border_radius=4)
+            # Held Item Indicator Box (Right)
+            box2_rect = pygame.Rect(self.sw - margin - 140, margin + bar_h + 8, 140, 32)
+            pygame.draw.rect(surface, (20, 24, 34), box2_rect, border_radius=4)
+            pygame.draw.rect(surface, (100, 110, 130), box2_rect, width=1, border_radius=4)
 
-        item2_str = "Unarmed"
-        if right.held_item:
-            item2_str = f"{right.held_item.item_type.value.upper()} ({right.held_item.ammo})"
-        elif right.shield_timer > 0:
-            item2_str = f"SHIELD ({int(right.shield_timer)}s)"
-        it2_surf = self.small_font.render(item2_str, True, (190, 230, 210))
-        surface.blit(it2_surf, (box2_rect.x + 8, box2_rect.y + 8))
+            item2_str = "Unarmed"
+            if right.held_item:
+                item2_str = f"{right.held_item.item_type.value.upper()} ({right.held_item.ammo})"
+            elif right.shield_timer > 0:
+                item2_str = f"SHIELD ({int(right.shield_timer)}s)"
+            it2_surf = self.small_font.render(item2_str, True, (190, 230, 210))
+            surface.blit(it2_surf, (box2_rect.x + 8, box2_rect.y + 8))
 
-        # Center Arena Title
-        vs_surf = self.header_font.render("VS", True, (200, 180, 120))
-        surface.blit(vs_surf, vs_surf.get_rect(center=(self.sw // 2, margin + bar_h // 2)))
+            # Center Arena Title
+            vs_surf = self.header_font.render("VS", True, (200, 180, 120))
+            surface.blit(vs_surf, vs_surf.get_rect(center=(self.sw // 2, margin + bar_h // 2)))
 
     def draw_result(self, surface: pygame.Surface, winner: Player) -> None:
         """Render victory result screen overlay."""

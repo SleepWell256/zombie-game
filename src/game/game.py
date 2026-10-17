@@ -31,18 +31,17 @@ class Game:
         self.ui: UI = UI(self.config)
 
         # States: "menu", "intro", "playing", "game_over", "quit"
-        self.state: str = "menu"
+        self.state: str = "playing"
         self.running: bool = True
         self._last_dt: float = 0.016
+        self.world.camera.skip_intro()
 
     def change_state(self, state: str) -> None:
         """Transition application state."""
         self.state = state
         if state == "intro":
-            self.world.camera.start_intro(
-                self.world.left_player.center(),
-                self.world.right_player.center(),
-            )
+            self.world.camera.skip_intro()
+            self.state = "playing"
         elif state == "quit":
             self.quit()
 
@@ -82,7 +81,8 @@ class Game:
             action = self.ui.handle_event(event)
             if action == "restart":
                 self.world.reset()
-                self.change_state("intro")
+                self.world.camera.skip_intro()
+                self.change_state("playing")
             elif action == "menu":
                 self.change_state("menu")
 
